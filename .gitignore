@@ -1,4 +1,4 @@
-# Local secrets — never commit. Real credentials live in Cloudflare.
+# Local secrets - never commit. Real credentials live in Cloudflare.
 .env
 .dev.vars
 

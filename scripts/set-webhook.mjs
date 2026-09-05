@@ -30,7 +30,7 @@ function fail(message) {
   process.exit(1);
 }
 
-if (!token) fail("TELEGRAM_BOT_TOKEN is not set");
+if (!token) fail("TELEGRAM_BOT_TOKEN is not set :<");
 if (!remove && !baseUrl) fail("PUBLIC_BASE_URL is not set (e.g. https://your-project.pages.dev)");
 
 const method = remove ? "deleteWebhook" : "setWebhook";
@@ -61,6 +61,6 @@ if (remove) {
 } else {
   console.log(`Webhook registered at ${baseUrl}/telegram/webhook`);
   if (!secret) {
-    console.warn("warning: TELEGRAM_WEBHOOK_SECRET was empty — the endpoint will accept unauthenticated posts.");
+    console.warn("warning: TELEGRAM_WEBHOOK_SECRET was empty - the endpoint will accept unauthenticated posts.");
   }
 }

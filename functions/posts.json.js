@@ -1,5 +1,5 @@
 /**
- * GET /posts.json — the public feed consumed by the website.
+ * GET /posts.json - the public feed consumed by the website.
  *
  * Read-only, cache-friendly, CORS-enabled. Contains only public channel
  * content: no tokens, no raw Telegram payloads, no Bot API internals.

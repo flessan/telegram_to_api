@@ -1,7 +1,7 @@
 # Cloudflare Pages configuration.
 #
 # Deployment is driven by Cloudflare's Git integration (or `wrangler pages
-# deploy`) — NOT by GitHub Actions. There is no .github/workflows directory in
+# deploy`) - NOT by GitHub Actions. There is no .github/workflows directory in
 # this repository and none is required.
 name = "telegram-to-json"
 compatibility_date = "2026-08-28"

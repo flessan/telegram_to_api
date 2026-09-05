@@ -6,7 +6,7 @@
  * the two deployment paths are interchangeable. This test pins the expected
  * shape; `go test ./internal/normalize` pins the same values on the Go side.
  *
- * If this fails, one implementation has drifted — fix both, don't relax it.
+ * If this fails, one implementation has drifted - fix both, don't relax it.
  */
 
 import test from "node:test";

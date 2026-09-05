@@ -1,5 +1,5 @@
 /**
- * GET / — API metadata / discovery document.
+ * GET / - API metadata / discovery document.
  *
  * Deliberately exposes no configuration values: no token (obviously), and no
  * numeric channel id beyond what is already public in the feed itself.

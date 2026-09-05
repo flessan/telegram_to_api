@@ -49,7 +49,7 @@ No GitHub Actions. No server. No database. No dashboard, login, or frontend fram
 
 **Webhook, not `getUpdates`.** `getUpdates` is a *destructive queue* with a cursor: whatever you read is acknowledged and gone. Cloudflare's runtime is stateless and handles requests concurrently, so polling from a Function would need a persisted offset, and two overlapping invocations could drain each other's updates and lose posts permanently. With a webhook, Telegram pushes each update to us and retries on any non-2xx response. **There is no cursor to store at all.** Duplicate deliveries are made harmless by deduplicating on Telegram's message ID, which makes the whole endpoint idempotent.
 
-**Workers KV, not a database.** Cloudflare isolates are ephemeral — a module-level array is *not* storage and would silently lose posts between requests, colocations, and deploys. The feed therefore lives in a single KV key holding one small JSON document. That is the simplest Cloudflare-native persistence that exists; no D1, Neon, or ORM is involved.
+**Workers KV, not a database.** Cloudflare isolates are ephemeral - a module-level array is *not* storage and would silently lose posts between requests, colocations, and deploys. The feed therefore lives in a single KV key holding one small JSON document. That is the simplest Cloudflare-native persistence that exists; no D1, Neon, or ORM is involved.
 
 **Pages Functions, not a Worker + separate static site.** One project serves the JSON and deploys straight from Git, so `/posts.json` and any future static asset share a domain and need no cross-origin plumbing.
 
@@ -57,7 +57,7 @@ No GitHub Actions. No server. No database. No dashboard, login, or frontend fram
 
 | Endpoint | Purpose |
 | --- | --- |
-| `GET /posts.json` | The full feed — channel metadata plus the latest ~20 posts |
+| `GET /posts.json` | The full feed - channel metadata plus the latest ~20 posts |
 | `GET /latest.json` | Channel metadata plus only the newest post |
 | `GET /` | API metadata: schema version, post count, endpoint list |
 | `POST /telegram/webhook` | Telegram-only ingestion endpoint, authenticated by a secret token |
@@ -65,7 +65,7 @@ No GitHub Actions. No server. No database. No dashboard, login, or frontend fram
 All read endpoints send:
 
 - `Content-Type: application/json; charset=utf-8`
-- `Cache-Control: public, max-age=60, s-maxage=60, stale-while-revalidate=300` — fast and cheap, but never permanently stale
+- `Cache-Control: public, max-age=60, s-maxage=60, stale-while-revalidate=300` - fast and cheap, but never permanently stale
 - CORS headers (see [`ALLOWED_ORIGINS`](#6-configure-variables-and-secrets)), with `OPTIONS` preflight returning `204`
 - `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `Cross-Origin-Resource-Policy: cross-origin`
 
@@ -131,7 +131,7 @@ Errors return a JSON `{"error": "..."}` body with `Cache-Control: no-store` and 
 | `updated_at` | RFC 3339 UTC, last time the feed changed |
 | `latest` | Newest retained post, or `null` when the feed is empty |
 | `posts` | Oldest → newest. Always an array, never `null` |
-| `posts[].id` | Telegram `message_id` — stable, used for deduplication |
+| `posts[].id` | Telegram `message_id` - stable, used for deduplication |
 | `posts[].type` | `text`, `photo`, `video`, `document`, or `other` |
 | `posts[].text` | Message text, or the caption for media posts; `""` when absent |
 | `posts[].published_at` | RFC 3339 UTC |
@@ -189,7 +189,7 @@ curl -s "https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates" | jq '.result[].ch
 { "id": -1001234567890, "title": "chfless", "username": "chfless", "type": "channel" }
 ```
 
-Use that `id`, including the `-100` prefix. The service accepts posts **only** from this exact numeric ID — a username is never trusted, because usernames can be released and re-registered by someone else.
+Use that `id`, including the `-100` prefix. The service accepts posts **only** from this exact numeric ID - a username is never trusted, because usernames can be released and re-registered by someone else.
 
 ### 4. Create the KV namespace
 
@@ -213,7 +213,7 @@ Build configuration:
 | Build output directory | `public` |
 | Root directory | *(leave empty)* |
 
-Functions in `functions/` are picked up automatically. Every push to the branch redeploys — no GitHub Actions involved.
+Functions in `functions/` are picked up automatically. Every push to the branch redeploys - no GitHub Actions involved.
 
 ### 6. Configure variables and secrets
 
@@ -231,7 +231,7 @@ Functions in `functions/` are picked up automatically. Every push to the branch 
 
 Also bind the KV namespace: **Settings → Bindings → KV namespace**, variable name `FEED`.
 
-> Use **Secret** (not plaintext) for the two credentials — Cloudflare then encrypts them and hides them from the dashboard and logs. Never put the token in GitHub.
+> Use **Secret** (not plaintext) for the two credentials - Cloudflare then encrypts them and hides them from the dashboard and logs. Never put the token in GitHub.
 
 `ALLOWED_ORIGINS` accepts a comma-separated allowlist. Unknown origins receive a non-matching `Access-Control-Allow-Origin`, so browsers block the read. Use `*` only if you want the feed readable from anywhere (it is public channel content, so that is often fine).
 
@@ -286,7 +286,7 @@ Rendering the latest few posts:
     const link = document.createElement("a");
     link.href = post.url;
     link.textContent = post.text || `(${post.type})`;
-    li.append(new Date(post.published_at).toLocaleDateString(), " — ", link);
+    li.append(new Date(post.published_at).toLocaleDateString(), " - ", link);
     list.append(li);
   }
 </script>
@@ -299,7 +299,7 @@ Only need the newest post? Fetch `/latest.json` and read `feed.latest`.
 ```bash
 npm install
 
-# Run the tests — no network, no credentials, mocked Telegram API
+# Run the tests - no network, no credentials, mocked Telegram API
 npm test
 
 # Serve the Functions locally on http://127.0.0.1:8788
@@ -325,7 +325,7 @@ curl -s -X POST http://127.0.0.1:8788/telegram/webhook \
 curl -s http://127.0.0.1:8788/posts.json
 ```
 
-Deploy manually (optional — Git pushes deploy automatically):
+Deploy manually (optional - Git pushes deploy automatically):
 
 ```bash
 npm run deploy
@@ -335,7 +335,7 @@ npm run deploy
 
 `cmd/` and `internal/` still contain the original Go collector. It is **not part of the Cloudflare deployment** and nothing depends on it. It remains useful if you ever want to snapshot the feed to a local file, run the collector on your own hardware, or work offline.
 
-It uses `getUpdates` with a cursor in `data/state.json`, which is the correct approach for a long-lived single process but the wrong one for a stateless Worker — hence the webhook design above.
+It uses `getUpdates` with a cursor in `data/state.json`, which is the correct approach for a long-lived single process but the wrong one for a stateless Worker - hence the webhook design above.
 
 ```bash
 go test ./...
@@ -343,7 +343,7 @@ go build -o bin/collector ./cmd/collector
 TELEGRAM_BOT_TOKEN=... TELEGRAM_CHANNEL_ID=-1001234567890 ./bin/collector
 ```
 
-`internal/normalize` and `functions/_lib/normalize.js` implement the **same** public schema; `test/parity.test.mjs` pins the shared output shape so the two cannot drift apart silently. Note that `getUpdates` and a webhook are mutually exclusive — running the Go collector while a webhook is registered will fail until you `npm run delete-webhook`.
+`internal/normalize` and `functions/_lib/normalize.js` implement the **same** public schema; `test/parity.test.mjs` pins the shared output shape so the two cannot drift apart silently. Note that `getUpdates` and a webhook are mutually exclusive - running the Go collector while a webhook is registered will fail until you `npm run delete-webhook`.
 
 If you have no use for it, delete `cmd/`, `internal/`, and `go.mod`; nothing else references them.
 
@@ -354,20 +354,20 @@ If you have no use for it, delete `cmd/`, `internal/`, and `go.mod`; nothing els
 - The browser never receives the token: it only ever talks to Cloudflare, and Cloudflare talks to Telegram server-side.
 - The token is never logged, never returned in an error body, and never included in the generated JSON. Two layers of redaction (exact match, plus a token-shaped regex) scrub anything that slips into an error string.
 - `/telegram/webhook` requires Telegram's `X-Telegram-Bot-Api-Secret-Token` header, so nobody can inject fake posts.
-- Channel identity is enforced by numeric chat ID. A different channel using the same `@chfless` username is rejected — this is covered by a test.
+- Channel identity is enforced by numeric chat ID. A different channel using the same `@chfless` username is rejected - this is covered by a test.
 - `.env` and `.dev.vars` are git-ignored; only `.env.example` / `.dev.vars.example` with empty placeholders are committed.
 - If a token ever leaks, revoke it immediately with `/revoke` in BotFather and update the Cloudflare secret.
 
 ## Troubleshooting
 
 **`/posts.json` returns `{"posts": []}`**
-- No posts have arrived yet. The feed only fills from the moment the webhook was registered — publish a new post.
+- No posts have arrived yet. The feed only fills from the moment the webhook was registered - publish a new post.
 - The bot is not a channel administrator.
 - The webhook is not registered: check `getWebhookInfo`.
 
 **`getWebhookInfo` shows a `last_error_message`**
-- `Wrong response from the webhook: 401 Unauthorized` — `TELEGRAM_WEBHOOK_SECRET` in Cloudflare doesn't match the one used at registration. Re-run `npm run setup-webhook` with matching values.
-- `500` — usually a missing variable or an unbound `FEED` KV namespace. Check the Function logs in the Cloudflare dashboard.
+- `Wrong response from the webhook: 401 Unauthorized` - `TELEGRAM_WEBHOOK_SECRET` in Cloudflare doesn't match the one used at registration. Re-run `npm run setup-webhook` with matching values.
+- `500` - usually a missing variable or an unbound `FEED` KV namespace. Check the Function logs in the Cloudflare dashboard.
 
 **Posts reach Telegram but not the feed**
 - `TELEGRAM_CHANNEL_ID` doesn't match `chat.id` exactly (the `-100` prefix is required). Mismatched posts are intentionally, silently ignored.
@@ -376,7 +376,7 @@ If you have no use for it, delete `cmd/`, `internal/`, and `go.mod`; nothing els
 - You configured `@chfless`. Use the numeric ID from [step 3](#3-find-the-numeric-channel-id).
 
 **`{"error":"TELEGRAM_BOT_TOKEN is not configured"}`**
-- The secret is missing in this environment. Pages keeps **Production** and **Preview** variables separate — set both, then redeploy (variable changes need a new deployment to take effect).
+- The secret is missing in this environment. Pages keeps **Production** and **Preview** variables separate - set both, then redeploy (variable changes need a new deployment to take effect).
 
 **`Conflict: can't use getUpdates method while webhook is active`**
 - Expected: you're running the Go collector while the webhook is live. Run `npm run delete-webhook` first.
@@ -389,4 +389,4 @@ If you have no use for it, delete `cmd/`, `internal/`, and `go.mod`; nothing els
 
 ## License
 
-GPL-3.0 — see [LICENSE](LICENSE).
+GPL-3.0 - see [LICENSE](LICENSE).

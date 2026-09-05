@@ -50,7 +50,7 @@ type Result struct {
 //
 // If any step before the feed write fails, the existing files stay untouched.
 // If the feed write succeeds but the state write fails, the next run re-reads
-// the same updates and merging deduplicates them — no posts are lost or dupli-
+// the same updates and merging deduplicates them - no posts are lost or dupli-
 // cated. That ordering makes the whole run safely retryable.
 func Run(ctx context.Context, api API, opt Options) (Result, error) {
 	var res Result

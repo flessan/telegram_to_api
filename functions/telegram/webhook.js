@@ -1,5 +1,5 @@
 /**
- * POST /telegram/webhook — receives channel posts pushed by Telegram.
+ * POST /telegram/webhook - receives channel posts pushed by Telegram.
  *
  * Why a webhook instead of getUpdates:
  * `getUpdates` is a destructive queue with a cursor. Cloudflare's runtime is

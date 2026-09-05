@@ -26,7 +26,7 @@ export function extractChannelPost(update) {
  *
  * Returns { post, channel } when the update is a relevant channel post, or
  * { post: null } for anything else: unsupported update types, malformed
- * payloads, group/supergroup messages, and — critically — posts from any
+ * payloads, group/supergroup messages, and - critically - posts from any
  * other chat, even one advertising the same @username.
  */
 export function processUpdate(update, channelId) {

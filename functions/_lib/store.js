@@ -4,7 +4,7 @@
  * Cloudflare's runtime is stateless: module-level variables live only as long
  * as an isolate and are NOT shared between requests, colocations or deploys.
  * Treating an in-memory array as storage would silently lose posts, so the
- * feed is kept in Workers KV — the simplest Cloudflare-native persistence
+ * feed is kept in Workers KV - the simplest Cloudflare-native persistence
  * available. It is a single key holding a small JSON document, not a database.
  *
  * Note there is deliberately NO Telegram update cursor here. The webhook

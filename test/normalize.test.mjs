@@ -78,7 +78,7 @@ test("rejects a foreign channel that spoofs the @chfless username", () => {
   const spoof = {
     message_id: 99,
     date: 1700000000,
-    // Same username, different numeric id — must be rejected.
+    // Same username, different numeric id - must be rejected.
     chat: { id: -1009999999999, type: "channel", title: "chfless", username: "chfless" },
     text: "impersonation attempt",
   };

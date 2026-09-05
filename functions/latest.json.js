@@ -1,5 +1,5 @@
 /**
- * GET /latest.json — just the newest retained post.
+ * GET /latest.json - just the newest retained post.
  *
  * Convenience endpoint for sites that only render a single "latest update"
  * widget and do not want to download the whole feed.
