@@ -1,6 +1,12 @@
-# Telegram Channel to JSON
+
+<div align="center">
+<img width="576" height="252" alt="image" src="https://github.com/user-attachments/assets/e608becd-b141-428f-afa4-14fe0c514996" />
+
+# Telegram Channel to ~~JSON~~ API
 
 A read-only public JSON API for a Telegram channel, running entirely on **Cloudflare Pages Functions**.
+
+</div>
 
 ```
 Telegram Channel (@chfless)
