@@ -4,7 +4,7 @@
 # deploy`) — NOT by GitHub Actions. There is no .github/workflows directory in
 # this repository and none is required.
 name = "telegram-to-json"
-compatibility_date = "2026-08-28"
+compatibility_date = "2024-09-23"
 pages_build_output_dir = "public"
 
 # Workers KV namespace holding the single "feed" key.
@@ -12,8 +12,8 @@ pages_build_output_dir = "public"
 # then paste the returned id below (and a preview_id for local/preview runs).
 [[kv_namespaces]]
 binding = "FEED"
-id = "ab17ec7a1fb14548afeed356b8014c4e"
-preview_id = "7af38207cf0644d185c583b6c8789594"
+id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+preview_id = "REPLACE_WITH_YOUR_PREVIEW_KV_NAMESPACE_ID"
 
 # Non-secret defaults. Secrets (TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET)
 # are configured in the Cloudflare dashboard and MUST NOT appear here.
