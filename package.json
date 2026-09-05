@@ -1,0 +1,21 @@
+{
+  "name": "telegram-to-json",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Telegram channel to a public JSON feed, served by Cloudflare Pages Functions.",
+  "license": "GPL-3.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "wrangler pages dev public --compatibility-date=2024-09-23 --kv FEED",
+    "test": "node --test \"test/**/*.test.mjs\"",
+    "deploy": "wrangler pages deploy public",
+    "setup-webhook": "node scripts/set-webhook.mjs",
+    "delete-webhook": "node scripts/set-webhook.mjs --delete"
+  },
+  "devDependencies": {
+    "wrangler": "^3.78.0"
+  }
+}

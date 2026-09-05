@@ -1,0 +1,33 @@
+# LOCAL DEVELOPMENT ONLY.
+#
+# Real production credentials belong in the Cloudflare dashboard
+# (Workers & Pages -> your project -> Settings -> Variables and Secrets),
+# NOT in this file and NOT in GitHub. Copy this to .env (git-ignored) and
+# fill in your own values.
+
+# Bot token from @BotFather. Treat it like a password.
+TELEGRAM_BOT_TOKEN=
+
+# Numeric chat id of the channel, e.g. -1001234567890.
+# A @username is NOT accepted: identity is verified by numeric id only.
+TELEGRAM_CHANNEL_ID=
+
+# Public channel username (no @). Used to build t.me links.
+TELEGRAM_CHANNEL_USERNAME=chfless
+
+# Shared secret sent by Telegram as X-Telegram-Bot-Api-Secret-Token.
+# Generate one with: openssl rand -hex 32
+TELEGRAM_WEBHOOK_SECRET=
+
+# Number of recent posts retained in the feed. Default: 20
+POST_LIMIT=20
+
+# Public cache lifetime for /posts.json in seconds. Default: 60
+CACHE_TTL_SECONDS=60
+
+# Comma-separated CORS allowlist, or * for a fully public feed.
+# e.g. https://thio.qzz.io,https://www.thio.qzz.io
+ALLOWED_ORIGINS=*
+
+# Only used by scripts/set-webhook.mjs
+PUBLIC_BASE_URL=

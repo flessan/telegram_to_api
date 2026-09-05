@@ -1,0 +1,11 @@
+# Local secrets — never commit. Real credentials live in Cloudflare.
+.env
+.dev.vars
+
+# Dependencies and build/runtime output
+node_modules/
+/bin/
+.wrangler/
+
+# Local collector output (the Cloudflare KV feed is the source of truth)
+/data/

@@ -1,0 +1,5 @@
+# Cloudflare Pages static headers.
+# Function responses set their own headers; this covers anything static.
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
