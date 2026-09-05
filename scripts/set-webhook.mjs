@@ -11,6 +11,8 @@
  *   npm run setup-webhook
  *
  *   npm run delete-webhook   # to unregister
+ *
+ * or if you use powershell, use $env:TELEGRAM_CHANNEL_ID="-100369696969" like that on your project, and then npm run setup-webhook
  */
 
 const token = (process.env.TELEGRAM_BOT_TOKEN ?? "").trim();
