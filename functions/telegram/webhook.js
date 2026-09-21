@@ -14,6 +14,7 @@
  */
 
 import { tryReadConfig } from "../_lib/config.js";
+import { forwardToDiscord } from "../_lib/discord.js";
 import { errorResponse, preflight, redact } from "../_lib/http.js";
 import { processUpdate } from "../_lib/ingest.js";
 import { saveposts } from "../_lib/store.js";
@@ -27,7 +28,7 @@ export async function onRequestGet({ request, env }) {
   return errorResponse(request, env, 405, "method not allowed: use POST");
 }
 
-export async function onRequestPost({ request, env }) {
+export async function onRequestPost({ request, env, waitUntil }) {
   const { config, error } = tryReadConfig(env);
   if (error) return errorResponse(request, env, 500, error);
 
@@ -48,10 +49,10 @@ export async function onRequestPost({ request, env }) {
     return errorResponse(request, env, 400, "request body is not valid JSON");
   }
 
-  const { post, channel } = processUpdate(update, config.channelId);
+  const { post, channel, isEdit } = processUpdate(update, config.channelId);
 
   // Irrelevant or malformed updates are acknowledged with 200 so Telegram
-  // stops retrying them, but they never touch the feed.
+  // stops retrying them, but they never touch the feed (or Discord).
   if (!post) {
     return new Response(JSON.stringify({ ok: true, stored: false }), {
       status: 200,
@@ -60,7 +61,37 @@ export async function onRequestPost({ request, env }) {
   }
 
   try {
+    // The JSON feed is the source of truth: validate + persist FIRST. Discord
+    // fan-out below is best-effort and can never fail this response.
     const { changed } = await saveposts(env, channel, [post], config.postLimit);
+
+    // Fan-out to Discord without delaying Telegram's acknowledgement. In
+    // production `waitUntil` runs delivery in the background; without it
+    // (tests, local dev) delivery is awaited so results are observable.
+    // forwardToDiscord never throws for network reasons, but guard anyway so a
+    // Discord outage can never turn into a 500 that makes Telegram resend an
+    // already-persisted post.
+    const discordTask = () =>
+      forwardToDiscord({
+        env,
+        post,
+        channel,
+        isEdit,
+        changed,
+        telegramToken: config.token,
+      }).catch((err) => {
+        console.warn(
+          `[discord] unexpected fan-out error: ${redact(err?.message ?? "unknown error", config.token)}`,
+        );
+        return { forwarded: false };
+      });
+
+    if (typeof waitUntil === "function") {
+      waitUntil(discordTask());
+    } else {
+      await discordTask();
+    }
+
     return new Response(JSON.stringify({ ok: true, stored: changed }), {
       status: 200,
       headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" },

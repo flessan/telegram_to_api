@@ -15,10 +15,16 @@ binding = "FEED"
 id = "ab17ec7a1fb14548afeed356b8014c4e"
 preview_id = "7af38207cf0644d185c583b6c8789594"
 
-# Non-secret defaults. Secrets (TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET)
-# are configured in the Cloudflare dashboard and MUST NOT appear here.
+# Non-secret defaults. Secrets (TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET,
+# DISCORD_WEBHOOK_URL) are configured in the Cloudflare dashboard
+# (Workers & Pages -> your project -> Settings -> Variables and Secrets)
+# and MUST NOT appear here.
 [vars]
 POST_LIMIT = "20"
 CACHE_TTL_SECONDS = "60"
 ALLOWED_ORIGINS = "*"
 TELEGRAM_CHANNEL_USERNAME = "chfless"
+# Discord fan-out is enabled by default but stays inert until a
+# DISCORD_WEBHOOK_URL secret is configured. Set to "false" to disable
+# forwarding even when the secret exists.
+DISCORD_ENABLED = "true"

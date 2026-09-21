@@ -7,17 +7,22 @@
  * Removes anything that looks like a bot token from a string before it can
  * reach a log line or an HTTP response body.
  *
- * Two layers of defence:
+ * Three layers of defence:
  *   1. exact match on the configured token (if provided),
  *   2. a generic pattern matching Telegram's `<digits>:<35+ chars>` format,
- *      which also catches tokens embedded in URLs like `/bot123:ABC/getMe`.
+ *      which also catches tokens embedded in URLs like `/bot123:ABC/getMe`,
+ *   3. Discord Incoming Webhook tokens embedded in webhook URLs
+ *      (`/api/webhooks/<id>/<token>`), where only the `<id>` is kept.
  */
 export function redact(value, token) {
   let text = typeof value === "string" ? value : String(value ?? "");
   if (token) text = text.split(token).join("[REDACTED]");
   // No \b anchors: a token embedded directly after "bot" (as in
   // ".../bot123456:ABC.../getMe") has no word boundary before the digits.
-  return text.replace(/\d{6,}:[A-Za-z0-9_-]{30,}/g, "[REDACTED]");
+  text = text.replace(/\d{6,}:[A-Za-z0-9_-]{30,}/g, "[REDACTED]");
+  // Discord webhook tokens: keep the numeric webhook id for diagnostics,
+  // redact the secret token segment (stops before ? & whitespace quotes).
+  return text.replace(/(\/api\/webhooks\/\d+\/)[A-Za-z0-9_.-]+/g, "$1[REDACTED]");
 }
 
 /**

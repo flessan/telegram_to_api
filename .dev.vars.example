@@ -29,5 +29,17 @@ CACHE_TTL_SECONDS=60
 # e.g. https://thio.qzz.io,https://www.thio.qzz.io
 ALLOWED_ORIGINS=*
 
+# Discord Incoming Webhook URL for channel fan-out. LOCAL PLACEHOLDER ONLY -
+# leave empty for feed-only local dev. The real production value belongs in
+# Cloudflare Pages Secrets (Workers & Pages -> your project -> Settings ->
+# Variables and Secrets) as DISCORD_WEBHOOK_URL, NEVER in this file or GitHub.
+# Example shape (DO NOT commit a real one):
+# https://discord.com/api/webhooks/<webhook-id>/<webhook-token>
+DISCORD_WEBHOOK_URL=
+
+# Fan-out toggle: "true" (default) forwards when DISCORD_WEBHOOK_URL is set,
+# "false" disables Discord delivery. Empty means "auto" (on when configured).
+DISCORD_ENABLED=true
+
 # Only used by scripts/set-webhook.mjs
 PUBLIC_BASE_URL=

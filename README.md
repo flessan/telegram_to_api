@@ -15,16 +15,19 @@ Telegram Channel (@chfless)
 Official Telegram Bot API
         │  webhook push (HTTPS, secret-token authenticated)
         ▼
-Cloudflare Pages Function  ──►  Workers KV (one small JSON key)
+Cloudflare Pages Function ──► Workers KV (feed JSON + Discord markers)
+        │                              │
+        │                              ▼
+        │                       GET /posts.json   GET /latest.json   GET /
+        │                              │
+        │                              ▼
+        │                       your website's fetch()
         │
-        ▼
-   GET /posts.json   GET /latest.json   GET /
-        │
-        ▼
-   your website's fetch()
+        └─► Discord Incoming Webhook ──► your Discord channel
+            (best-effort fan-out, same Function, no second bot)
 ```
 
-No GitHub Actions. No server. No database. No dashboard, login, or frontend framework. The bot token lives only in Cloudflare and never reaches a browser.
+No GitHub Actions. No server. No database. No dashboard, login, or frontend framework. The bot token and the Discord webhook URL live only in Cloudflare and never reach a browser.
 
 ---
 
@@ -42,6 +45,8 @@ No GitHub Actions. No server. No database. No dashboard, login, or frontend fram
   - [5. Connect the repo to Cloudflare Pages](#5-connect-the-repo-to-cloudflare-pages)
   - [6. Configure variables and secrets](#6-configure-variables-and-secrets)
   - [7. Register the Telegram webhook](#7-register-the-telegram-webhook)
+  - [8. Forward to Discord (optional)](#8-forward-to-discord-optional)
+- [Discord forwarding](#discord-forwarding)
 - [Consuming the feed](#consuming-the-feed)
 - [Local development](#local-development)
 - [The optional Go collector](#the-optional-go-collector)
@@ -59,6 +64,8 @@ No GitHub Actions. No server. No database. No dashboard, login, or frontend fram
 
 **Pages Functions, not a Worker + separate static site.** One project serves the JSON and deploys straight from Git, so `/posts.json` and any future static asset share a domain and need no cross-origin plumbing.
 
+**Discord fan-out, not a second bot.** After a post is validated and persisted, the *same* Function invocation forwards it to Discord through an Incoming Webhook (`?wait=true`). There is no polling loop, no second bot, no GitHub Action, and no database - just one extra HTTPS call inside `/telegram/webhook`, isolated so a Discord outage can never break the JSON feed (see [Discord forwarding](#discord-forwarding)).
+
 ## Endpoints
 
 | Endpoint | Purpose |
@@ -66,7 +73,7 @@ No GitHub Actions. No server. No database. No dashboard, login, or frontend fram
 | `GET /posts.json` | The full feed - channel metadata plus the latest ~20 posts |
 | `GET /latest.json` | Channel metadata plus only the newest post |
 | `GET /` | API metadata: schema version, post count, endpoint list |
-| `POST /telegram/webhook` | Telegram-only ingestion endpoint, authenticated by a secret token |
+| `POST /telegram/webhook` | Telegram-only ingestion endpoint, authenticated by a secret token. Persists to KV, then best-effort fan-out to Discord |
 
 All read endpoints send:
 
@@ -154,17 +161,19 @@ functions/                    Cloudflare Pages Functions (the deployed product)
   index.js                    GET /
   posts.json.js               GET /posts.json
   latest.json.js              GET /latest.json
-  telegram/webhook.js         POST /telegram/webhook
+  telegram/webhook.js         POST /telegram/webhook (+ Discord fan-out)
   _lib/
     normalize.js              Telegram message -> public schema (port of the Go logic)
     ingest.js                 Update filtering / channel-ID enforcement
     store.js                  KV-backed feed persistence
-    telegram.js               Minimal Bot API client (getMe)
+    telegram.js               Minimal Bot API client (getMe, getFile, file download)
+    discord.js                Discord webhook fan-out (embeds, photo upload, markers)
     http.js                   CORS, caching, security headers, secret redaction
     config.js                 Env validation
 public/                       Static assets served by Pages
 scripts/set-webhook.mjs       One-off webhook registration helper
 test/                         Node test-runner suite (no network, no credentials)
+  discord.test.mjs            Mocked Discord + Telegram servers for fan-out tests
 cmd/, internal/               Optional Go collector for local/self-hosted use
 wrangler.toml                 Pages + KV configuration
 ```
@@ -229,15 +238,17 @@ Functions in `functions/` are picked up automatically. Every push to the branch 
 | --- | --- | --- |
 | `TELEGRAM_BOT_TOKEN` | **Secret** (encrypted) | Your BotFather token |
 | `TELEGRAM_WEBHOOK_SECRET` | **Secret** (encrypted) | `openssl rand -hex 32` |
+| `DISCORD_WEBHOOK_URL` | **Secret** (encrypted) | Your Discord Incoming Webhook URL (see [step 8](#8-forward-to-discord-optional); leave unset for feed-only mode) |
 | `TELEGRAM_CHANNEL_ID` | Plaintext variable | `-1001234567890` |
 | `TELEGRAM_CHANNEL_USERNAME` | Plaintext variable | `chfless` |
 | `POST_LIMIT` | Plaintext variable | `20` |
 | `CACHE_TTL_SECONDS` | Plaintext variable | `60` |
 | `ALLOWED_ORIGINS` | Plaintext variable | `https://thio.qzz.io` or `*` |
+| `DISCORD_ENABLED` | Plaintext variable | `true` (set to `false` to pause Discord forwarding) |
 
 Also bind the KV namespace: **Settings → Bindings → KV namespace**, variable name `FEED`.
 
-> Use **Secret** (not plaintext) for the two credentials - Cloudflare then encrypts them and hides them from the dashboard and logs. Never put the token in GitHub.
+> Use **Secret** (not plaintext) for the credentials - Cloudflare then encrypts them and hides them from the dashboard and logs. Never put the token or the Discord webhook URL in GitHub, `wrangler.toml`, or any committed file.
 
 `ALLOWED_ORIGINS` accepts a comma-separated allowlist. Unknown origins receive a non-matching `Access-Control-Allow-Origin`, so browsers block the read. Use `*` only if you want the feed readable from anywhere (it is public channel content, so that is often fine).
 
@@ -264,6 +275,29 @@ npm run delete-webhook
 Now publish a post in the channel and refresh `https://<your-project>.pages.dev/posts.json`.
 
 > **Note:** the feed contains posts received *from the moment the webhook is registered onward*. The Bot API cannot retrieve a channel's history, so this is a live collector, not an archival export.
+
+### 8. Forward to Discord (optional)
+
+Each new channel post can also be mirrored to a Discord channel. This reuses the Telegram webhook above - there is nothing extra to deploy.
+
+1. **Create a Discord Incoming Webhook.** In Discord: Server Settings → **Integrations** → **Webhooks** → **New Webhook** (or Channel Settings → **Integrations** → **Webhooks** → **New Webhook**). Pick the target channel, optionally set the name and avatar, then **Copy Webhook URL**. It looks like `https://discord.com/api/webhooks/<id>/<token>` - treat the whole URL as a secret.
+2. **Store it in Cloudflare.** Dashboard → **Workers & Pages** → your project → **Settings** → **Variables and Secrets** → add `DISCORD_WEBHOOK_URL` as a **Secret** (encrypted), for both **Production** and **Preview**. Then redeploy (variable changes need a new deployment to take effect).
+3. **Enable/disable.** `DISCORD_ENABLED=true` (the default in `wrangler.toml`) forwards whenever the secret is set. Set it to `false` to pause Discord delivery without deleting the secret; leaving the secret unset disables forwarding entirely (feed-only mode, safe for local dev).
+
+Never commit the webhook URL to GitHub - not in `wrangler.toml`, `.env`, docs, or fixtures. `.env.example` carries an empty placeholder only.
+
+## Discord forwarding
+
+How the Telegram → Cloudflare → JSON + Discord flow works, per webhook call:
+
+1. Telegram pushes `channel_post` / `edited_channel_post` to `POST /telegram/webhook`.
+2. The Function validates the webhook secret and the exact numeric `TELEGRAM_CHANNEL_ID` (usernames are never trusted), normalizes the post, and persists it to Workers KV (`/posts.json`, `/latest.json`, `/` are unchanged).
+3. The same invocation fans out to Discord via `context.waitUntil()`, so Telegram is acknowledged immediately:
+   - **Text posts** become a clean embed: channel title as the webhook username, original text as the description, a `t.me` link back, `Telegram message #<id>` in the footer, and the publish timestamp. No raw JSON is ever dumped.
+   - **Photo posts** resolve the largest rendition via `getFile`, download it server-side (other sizes are never fetched), and upload it as a webhook attachment with the caption preserved. The Telegram token only appears in server-side Telegram URLs and is redacted from all logs and Discord traffic. Oversized or failed downloads degrade to a caption-only embed.
+   - **Video / document / other** posts send a caption-style embed with a type label and the `t.me` link (media bytes are not re-uploaded).
+4. Discord delivery is **best-effort and idempotent**: one lightweight KV marker per Telegram message id (`discord:<channelId>:<messageId>`) stores the Discord message id returned with `?wait=true`. Duplicate Telegram deliveries find the marker and skip Discord, so retries never duplicate messages. A Discord outage is logged (redacted, no secrets) and the webhook still returns `200` to Telegram, because the feed is already persisted.
+5. **Edits** PATCH the original Discord message in place using the stored id. Fallbacks (all bounded, never uncontrolled duplicates): an edit with no marker (original predates the integration) is posted once as a new message; a PATCH that hits `404` (Discord message manually deleted) reposts once; duplicate edit deliveries PATCH at most once. Edits can never corrupt the JSON feed - the feed merge is unchanged.
 
 ## Consuming the feed
 
@@ -305,12 +339,14 @@ Only need the newest post? Fetch `/latest.json` and read `feed.latest`.
 ```bash
 npm install
 
-# Run the tests - no network, no credentials, mocked Telegram API
+# Run the tests - no network, no credentials, mocked Telegram + Discord APIs
 npm test
 
 # Serve the Functions locally on http://127.0.0.1:8788
 npm run dev
 ```
+
+Discord forwarding is inert locally until you set a `DISCORD_WEBHOOK_URL` in `.dev.vars` - with it empty, the webhook behaves exactly as the feed-only version. The test suite (`test/discord.test.mjs`) covers text/photo forwarding, captions, Discord outages, duplicate-delivery idempotency, secret redaction, invalid config, and edit PATCHing against local mock servers, so the real Discord API is never touched.
 
 `npm run dev` picks up local values from `.dev.vars` (git-ignored). Start from the template:
 
@@ -356,13 +392,13 @@ If you have no use for it, delete `cmd/`, `internal/`, and `go.mod`; nothing els
 ## Security
 
 - The bot token is a **credential equivalent to a password**. Anyone holding it controls your bot.
-- Store it **only** as a Cloudflare **Secret**. Never in GitHub, never in `wrangler.toml`, never in `public/`, never in frontend JavaScript.
-- The browser never receives the token: it only ever talks to Cloudflare, and Cloudflare talks to Telegram server-side.
-- The token is never logged, never returned in an error body, and never included in the generated JSON. Two layers of redaction (exact match, plus a token-shaped regex) scrub anything that slips into an error string.
+- The Discord webhook URL is equally secret: anyone holding it can post to your Discord channel. Store **both only** as Cloudflare **Secrets**. Never in GitHub, never in `wrangler.toml`, never in `public/`, never in frontend JavaScript, never in docs or test fixtures.
+- The browser never receives either secret: it only ever talks to Cloudflare, and Cloudflare talks to Telegram/Discord server-side. `/posts.json`, `/latest.json`, and `/` contain no secrets (covered by tests).
+- Secrets are never logged, never returned in an error body, and never included in generated JSON, KV markers, or Discord payloads. Redaction covers exact matches, Telegram's token format, and Discord webhook token segments (`/api/webhooks/<id>/[REDACTED]`).
 - `/telegram/webhook` requires Telegram's `X-Telegram-Bot-Api-Secret-Token` header, so nobody can inject fake posts.
 - Channel identity is enforced by numeric chat ID. A different channel using the same `@chfless` username is rejected - this is covered by a test.
 - `.env` and `.dev.vars` are git-ignored; only `.env.example` / `.dev.vars.example` with empty placeholders are committed.
-- If a token ever leaks, revoke it immediately with `/revoke` in BotFather and update the Cloudflare secret.
+- If the bot token ever leaks, revoke it immediately with `/revoke` in BotFather and update the Cloudflare secret. If the Discord webhook URL leaks, regenerate it in Discord (Webhook Settings → **Regenerate**) and update the Cloudflare secret.
 
 ## Troubleshooting
 
@@ -392,6 +428,17 @@ If you have no use for it, delete `cmd/`, `internal/`, and `go.mod`; nothing els
 
 **Feed looks stale for up to a minute**
 - That's `CACHE_TTL_SECONDS` (default 60) doing its job. Lower it if you want, at the cost of more Function invocations.
+
+**Posts reach the feed but not Discord**
+- `DISCORD_WEBHOOK_URL` is missing or invalid in this environment (Production and Preview are separate - set both, then redeploy). An invalid URL or `DISCORD_ENABLED=false` disables forwarding silently by design; the feed is unaffected. Check Function logs for a redacted `[discord]` line.
+- The webhook was deleted or regenerated in Discord: copy the fresh URL into the Cloudflare secret.
+- Photo posts appear as caption-only embeds: the Telegram download failed or exceeded ~10 MiB. Text and the `t.me` link are still delivered.
+
+**Duplicate Discord messages**
+- Should not happen: one KV marker per Telegram message id suppresses re-posts on Telegram retries (covered by tests). If you see duplicates, check for a second webhook/bot posting to the same Discord channel, or two Cloudflare deployments sharing one Discord webhook.
+
+**Edited Telegram posts don't update Discord**
+- Edits PATCH the original Discord message via its stored id. If the Discord message was manually deleted, the next edit reposts it once. Posts that predate the Discord integration post once on their first edit.
 
 ## License
 
