@@ -34,6 +34,7 @@ export const DISCORD_TIMEOUT_MS = 10_000;
 export const DISCORD_EMBED_COLOR = 0x229ed9; // Telegram blue
 export const DISCORD_MAX_DESCRIPTION = 4000;
 export const DISCORD_MAX_USERNAME = 80;
+export const DISCORD_JOIN_URL = "https://t.me/chfless";
 
 /** Values accepted for DISCORD_ENABLED (case-insensitive). Empty = auto. */
 const ENABLED_TRUE = new Set(["1", "true", "yes", "on", "enabled"]);
@@ -171,14 +172,30 @@ function sanitizeUsername(channel) {
 function fallbackDescription(post) {
   switch (post?.type) {
     case "photo":
-      return "📷 Photo";
+      return "Photo";
     case "video":
-      return "🎬 Video";
+      return "Video";
     case "document":
-      return "📄 Document";
+      return "Document";
     default:
       return post?.type === "text" ? "(no text)" : "New post";
   }
+}
+
+function buildDiscordComponents() {
+  return [
+    {
+      type: 1,
+      components: [
+        {
+          type: 2,
+          style: 5,
+          label: "Join Telegram",
+          url: DISCORD_JOIN_URL,
+        },
+      ],
+    },
+  ];
 }
 
 /**
@@ -187,17 +204,25 @@ function fallbackDescription(post) {
  */
 export function buildDiscordPayload(post, channel, options = {}) {
   const username = sanitizeUsername(channel);
-  const authorName = truncate(channel?.title || (channel?.username ? `@${channel.username}` : "Telegram"), 256);
+  const authorName = truncate(
+    channel?.title || (channel?.username ? `@${channel.username}` : "Telegram"),
+    256,
+  );
   const title = truncate(`Telegram post #${post?.id ?? "?"}`, 256);
   const description = post?.text
     ? truncate(post.text, DISCORD_MAX_DESCRIPTION)
     : fallbackDescription(post);
 
-  const footerBits = [`Telegram message #${post?.id ?? "?"}`];
-  if (channel?.username) footerBits.push(`@${channel.username}`);
+  const footerBits = [
+    `@${channel?.username || "chfless"}`,
+    `Telegram #${post?.id ?? "?"}`,
+  ];
   if (post?.edited_at) footerBits.push("edited");
   const footer = { text: truncate(footerBits.join(" • "), 2048) };
 
+  // Keep the hierarchy close to a modern GitHub-style link preview:
+  // author/source, linked title, readable body, timestamp, and compact footer.
+  // The Telegram action is a native Discord link button below the embed.
   const embed = {
     color: DISCORD_EMBED_COLOR,
     author: { name: authorName },
@@ -219,7 +244,12 @@ export function buildDiscordPayload(post, channel, options = {}) {
     embed.image = { url: `attachment://${attachmentFilename}` };
   }
 
-  return { username, embeds: [embed] };
+  return {
+    username,
+    allowed_mentions: { parse: [] },
+    embeds: [embed],
+    components: buildDiscordComponents(),
+  };
 }
 
 /** KV key for the per-message Discord delivery marker. */
@@ -385,10 +415,9 @@ export async function uploadPhotoToDiscord(
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const form = new FormData();
-    form.append(
-      "payload_json",
-      new Blob([JSON.stringify(jsonPayload)], { type: "application/json" }),
-    );
+    // payload_json is a normal multipart text field. Wrapping it in a Blob/File
+    // makes Discord treat it as a visible attachment named "payload_json".
+    form.append("payload_json", JSON.stringify(jsonPayload));
     form.append(
       "files[0]",
       new Blob([imageBytes], { type: contentType || "image/jpeg" }),
