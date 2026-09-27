@@ -239,6 +239,16 @@ test("a text post is forwarded to Discord with text, link, id and timestamp", as
     const embed = payload.embeds[0];
     assert.equal(embed.description, "hello discord");
     assert.equal(embed.url, "https://t.me/chfless/10");
+    assert.deepEqual(payload.allowed_mentions, { parse: [] });
+    assert.deepEqual(payload.components, [{
+      type: 1,
+      components: [{
+        type: 2,
+        style: 5,
+        label: "Join Telegram",
+        url: "https://t.me/chfless",
+      }],
+    }]);
     assert.match(embed.footer.text, /#10/);
     assert.equal(embed.timestamp, "2023-11-14T22:13:20Z");
 
@@ -292,8 +302,11 @@ test("a photo post uploads the image with its caption preserved", async () => {
   const discord = await mockDiscord(({ url, body, res }) => {
     assert.match(url, /wait=true/);
     // Multipart upload must carry both the JSON payload and the image bytes.
+    // payload_json must be a normal text field, not a second uploaded file.
     const text = body.toString("latin1");
-    assert.match(text, /payload_json/);
+    assert.match(text, /name="payload_json"/);
+    assert.doesNotMatch(text, /name="payload_json"; filename="payload_json"/);
+    assert.doesNotMatch(text, /name="payload_json"; filename="blob"/);
     assert.match(text, /A photo caption/);
     assert.match(text, /attachment:\/\/telegram-12\.jpg/);
     assert.ok(body.includes(telegram.fileBytes), "uploaded body must contain the image bytes");
@@ -334,7 +347,8 @@ test("a photo without a caption still uploads with a readable fallback", async (
   const discord = await mockDiscord(({ body, res }) => {
     // Multipart body: JSON part is UTF-8 (emoji intact), image part is binary.
     const text = body.toString("utf8");
-    assert.match(text, /📷 Photo/);
+    assert.match(text, /name="payload_json"/);
+    assert.match(text, /"description":"Photo"/);
     assert.ok(body.includes(telegram.fileBytes), "uploaded body must contain the image bytes");
     jsonOk(res, { id: "444444444444444444" });
   });
